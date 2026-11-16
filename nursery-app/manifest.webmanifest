@@ -1,15 +1,16 @@
 {
-  "id": "nursery-inventory",
-  "name": "Питомник · Инвентаризация",
-  "short_name": "Питомник",
-  "description": "Учёт растений, штрихкоды и продажи в питомнике",
+  "id": "gektary-schastya",
+  "name": "Гектары Счастья · Инвентаризация",
+  "short_name": "Гектары",
+  "description": "Учёт растений, штрихкоды и продажи в питомнике «Гектары Счастья»",
   "lang": "ru", "start_url": "./", "scope": "./",
   "display": "standalone", "orientation": "portrait",
   "background_color": "#f3f6ec", "theme_color": "#1e4d2b",
   "icons": [
+    {"src": "logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
     {"src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"},
     {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
     {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
-    {"src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png", "purpose": "any"}
+    {"src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png"}
   ]
 }
