@@ -1,6 +1,6 @@
 /* ============================================================
-   ГЕКТАРЫ СЧАСТЬЯ · Инвентаризация питомника · v2
-   Офлайн-PWA: скан офлайн, партии, скидки, синхронизация Supabase
+   ГЕКТАРЫ СЧАСТЬЯ · Инвентаризация питомника · v3
+   8-значные коды, код подписан на этикетках, эмблема в иконке
    ============================================================ */
 'use strict';
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -9,7 +9,7 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const money=n=>{n=+n||0;const o={style:'currency',currency:'RUB',maximumFractionDigits:Number.isInteger(n)?0:2};return new Intl.NumberFormat('ru-RU',o).format(n)};
 const dtFull=ts=>new Date(ts).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
 const dtDay=ts=>new Date(ts).toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
-function toast(msg,type=''){const t=document.createElement('div');t.className='toast '+type;t.innerHTML=msg;$('#toasts').append(t);setTimeout(()=>t.remove(),3600)}
+function toast(msg,type=''){const t=document.createElement('div');t.className='toast '+type;t.innerHTML=msg;$('#toasts').append(t);setTimeout(()=>t.remove(),4200)}
 function beep(){try{const a=beep._a||(beep._a=new (window.AudioContext||window.webkitAudioContext)());const o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=1150;g.gain.value=.12;o.start();o.stop(a.currentTime+.12)}catch(e){}}
 const vib=ms=>navigator.vibrate&&navigator.vibrate(ms);
 function fileCompress(file,max=900,q=.72){return new Promise(res=>{const img=new Image(),u=URL.createObjectURL(file);img.onload=()=>{let w=img.width,h=img.height;const k=Math.min(1,max/Math.max(w,h));w=Math.round(w*k);h=Math.round(h*k);const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',q))};img.src=u})}
@@ -61,7 +61,7 @@ function svgBarcode(text){const{segs,width}=c128segments(text);
  const bars=segs.map(([x,w])=>`<rect x="${x}" y="0" width="${w}" height="40"/>`).join('');
  return`<svg viewBox="0 0 ${width} 40" preserveAspectRatio="none" fill="#111"><rect width="${width}" height="40" fill="#fff"/>${bars}</svg>`}
 
-/* ---------- Code 128: СВОЙ РАСКОДИРОВЩИК С КАМЕРЫ (офлайн, без библиотек) ---------- */
+/* ---------- Code 128: свой раскодировщик с камеры (офлайн) ---------- */
 let decCanvas=null;
 function rowRuns(img,W,y,tf){const L=new Uint8Array(W);let min=255,max=0;
  for(let x=0;x<W;x++){const o=(y*W+x)*4;const l=(img[o]*299+img[o+1]*587+img[o+2]*114)/1000;L[x]=l;if(l<min)min=l;if(l>max)max=l}
@@ -94,23 +94,26 @@ function grabDecode(video){if(!decCanvas){decCanvas=document.createElement('canv
    const s=decodeRuns(runs);if(s)return s}}
  return null}
 
-/* ---------- этикетки: canvas (A4 43×25 и термо 46×20) ---------- */
+/* ---------- этикетки: canvas (A4 43×25 и термо 46×20), код подписан цифрами ---------- */
 function fitText(ctx,text,maxW){let t=text;while(t.length>3&&ctx.measureText(t).width>maxW)t=t.slice(0,-2).trimEnd()+'…';return t}
 function renderLabelCanvas(it,thermo){const mm=10,W=(thermo?46:43)*mm,H=(thermo?20:25)*mm;
  const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
  x.fillStyle='#fff';x.fillRect(0,0,W,H);x.textBaseline='top';
  const st=siteOf(it),pad=(thermo?1.5:2)*mm;
+ const code=String(it.barcode||'');
  if(thermo){
   x.fillStyle='#151515';x.font='700 22px system-ui,Arial';x.fillText(fitText(x,it.name||'',W-2*pad),pad,1.2*mm);
-  x.font='500 15px system-ui,Arial';x.fillStyle='#333';x.fillText(fitText(x,(it.variety||'')+' · №'+st.num,W-2*pad),pad,4.3*mm);
+  x.font='500 15px system-ui,Arial';x.fillStyle='#333';x.fillText(fitText(x,(it.variety||'')+' · площ. '+st.num,W-2*pad),pad,4.3*mm);
   x.font='800 21px system-ui,Arial';x.fillStyle='#111';x.fillText(money(it.price),pad,6.9*mm);
-  const{segs,width}=c128segments(it.barcode||'0');const bw=W-2*pad,bh=9*mm,by=H-bh-0.8*mm,k=bw/width;
+  x.font='800 15px system-ui,Arial';x.textAlign='right';x.fillText(code,W-pad,7.2*mm);x.textAlign='left';
+  const{segs,width}=c128segments(code||'0');const bw=W-2*pad,bh=9*mm,by=H-bh-0.8*mm,k=bw/width;
   for(const[sx,sw]of segs)x.fillRect(pad+sx*k,by,Math.max(1,sw*k),bh);
  }else{
   x.fillStyle='#151515';x.font='700 25px system-ui,Arial';x.fillText(fitText(x,it.name||'Без названия',W-2*pad),pad,1.6*mm);
-  x.font='500 18px system-ui,Arial';x.fillStyle='#333';x.fillText(fitText(x,(it.variety||'сорт —')+' · Площ. №'+st.num,W-2*pad),pad,5.1*mm);
+  x.font='500 18px system-ui,Arial';x.fillStyle='#333';x.fillText(fitText(x,(it.variety||'сорт —')+' · площ. '+st.num,W-2*pad),pad,5.1*mm);
   x.font='800 26px system-ui,Arial';x.fillStyle='#111';x.fillText(money(it.price),pad,8.2*mm);
-  const{segs,width}=c128segments(it.barcode||'0');const bw=W-2*pad,bh=10*mm,by=H-bh-1.4*mm,k=bw/width;
+  x.font='800 18px system-ui,Arial';x.textAlign='right';x.fillText(code,W-pad,8.8*mm);x.textAlign='left';
+  const{segs,width}=c128segments(code||'0');const bw=W-2*pad,bh=10*mm,by=H-bh-1.4*mm,k=bw/width;
   for(const[sx,sw]of segs)x.fillRect(pad+sx*k,by,Math.max(1,sw*k),bh)}
  return c}
 
@@ -202,14 +205,18 @@ function renderSitePage(id){const s=sitesById()[id];if(!s)return'<div class="emp
   </div>`}
 
 /* ---------- позиция растения ---------- */
-function nextBarcode(){let n=101;while(state.items.some(i=>i.barcode===String(n)))n++;return String(n)}
+function nextBarcode(){let c;do{c=String(Math.floor(10000000+Math.random()*90000000))}while(state.items.some(i=>i.barcode===c));return c}
+async function migrateCodes(){let ch=0;
+ for(const it of state.items){if(!/^\d{8}$/.test(it.barcode||'')){it.barcode=nextBarcode();it.updatedAt=Date.now();await DB.put('items',it);ch++}}
+ if(ch){addLog('Система',`Коды заменены на 8-значные у ${ch} позиций`);
+  toast(`Коды обновлены на 8-значные (${ch} поз.). Старые этикетки перепечатайте один раз.`,'warn')}}
 function renderItemForm(id){
  const isNew=id.startsWith('new')||!itemsById()[id];
  const q=new URLSearchParams((location.hash.split('?')[1])||'');
  const it=isNew?{name:'',variety:'',height:'',age:'',price:'',qty:'',barcode:nextBarcode(),siteId:q.get('site')||actSites()[0]?.id||'',photo:'',batches:[]}:JSON.parse(JSON.stringify(itemsById()[id]));
  if(!actSites().length)return`<div class="pagehead"><button class="back" data-go="#/sites">←</button><h2>Новое растение</h2></div><div class="empty"><span class="big">🏞️</span><b>Сначала создайте площадку</b><br><br><button class="btn primary" onclick="siteForm()">+ Создать площадку</button></div>`;
  const opts=actSites().map(s=>`<option value="${s.id}" ${s.id===it.siteId?'selected':''}>№${esc(s.num)} — ${esc(s.name||'')}</option>`).join('');
- const bs=it.batches||[];const uc=unitCost(it);
+ const bs=it.batches||[];
  return`<div class="pagehead"><button class="back" onclick="history.back()">←</button><h2>${isNew?'Новое растение':esc(it.name)}<span class="sub">код штрихкода: <b>${esc(it.barcode)}</b></span></h2></div>
  <div class="card" style="cursor:pointer" id="ph-card">
    ${it.photo?`<img class="ph lg" id="ph-img" src="${it.photo}">`:`<div class="ph lg" id="ph-ph">📷<div style="font-size:14px;color:var(--mut)">Добавить фото</div></div>`}
@@ -225,8 +232,8 @@ function renderItemForm(id){
    <div class="field"><label>Цена, ₽ *</label><input id="f-price" inputmode="decimal" value="${esc(it.price)}" placeholder="650"></div>
    <div class="field"><label>Кол-во горшков *</label><input id="f-qty" inputmode="numeric" value="${esc(it.qty)}" placeholder="30"></div>
   </div>
-  <div class="field"><label>Штрихкод (Code 128) — один на сорт</label>
-   <div style="display:flex;gap:8px"><input id="f-bc" value="${esc(it.barcode)}" style="flex:1"><button class="btn ghost small" id="f-bc-gen" type="button">⟳</button></div>
+  <div class="field"><label>Штрихкод (Code 128) — 8 цифр, один на сорт</label>
+   <div style="display:flex;gap:8px"><input id="f-bc" value="${esc(it.barcode)}" style="flex:1" inputmode="numeric"><button class="btn ghost small" id="f-bc-gen" type="button">⟳</button></div>
    <div class="bc-preview" id="bc-prev"></div></div>
  </div>
  <div class="card">
@@ -286,21 +293,24 @@ function bindItemForm(id){
  $('#ph-card').onclick=()=>$('#f-photo').click();
  $('#f-photo').onchange=async e=>{const f=e.target.files[0];if(!f)return;const data=await fileCompress(f);bindItemForm._photo=data;
   const el=$('#ph-img');if(el)el.src=data;else $('#ph-ph').outerHTML=`<img class="ph lg" id="ph-img" src="${data}">`};
- const updBc=()=>{$('#bc-prev').innerHTML=$('#f-bc').value?svgBarcode($('#f-bc').value.trim())+'<div><code>'+esc($('#f-bc').value.trim())+'</code></div>':''};
+ const updBc=()=>{$('#bc-prev').innerHTML=/^\d{8}$/.test($('#f-bc').value.trim())?svgBarcode($('#f-bc').value.trim())+'<div><code>'+esc($('#f-bc').value.trim())+'</code></div>':'<div class="muted">Код должен состоять из 8 цифр</div>'};
  $('#f-bc').addEventListener('input',updBc);$('#f-bc-gen').onclick=()=>{$('#f-bc').value=nextBarcode();updBc()};
- $('#f-batch').onclick=()=>batchSheet(isNew?{id:null}:itemsById()[id]||{id:null});
+ $('#f-batch').onclick=()=>batchSheet(itemsById()[id]||{id:null});
  if(isNew)$('#f-batch').style.display='none';
  costBox(isNew?{batches:[]}:itemsById()[id]);updBc();
  $('#f-save').onclick=async()=>{
   const name=$('#f-name').value.trim(),price=+$('#f-price').value,qty=Math.round(+$('#f-qty').value||0);
+  const bc=$('#f-bc').value.trim();
   if(!name)return toast('Укажите название','warn');
   if(!(price>=0))return toast('Укажите цену','warn');
   if(qty<0)return toast('Количество не может быть отрицательным','warn');
+  if(!/^\d{8}$/.test(bc))return toast('Код должен быть из 8 цифр, например 51324567','warn');
+  if(state.items.some(i=>i.barcode===bc&&i.id!==id))return toast('Такой код уже есть у другой позиции','warn');
   const data={name,variety:$('#f-variety').value.trim(),height:$('#f-height').value.trim(),age:$('#f-age').value.trim(),
-   price,qty,siteId:$('#f-site').value,barcode:($('#f-bc').value.trim()||nextBarcode()),photo:bindItemForm._photo||'',updatedAt:Date.now()};
-  if(isNew){const it={id:uid(),batches:[],...data};state.items.push(it);await DB.put('items',it);addLog('Позиция',`Добавлена: ${name} — ${qty} горшков, код ${it.barcode}`);toast('✓ Растение добавлено. Теперь добавьте партию для себестоимости.');go('#/item/'+it.id)}
+   price,qty,siteId:$('#f-site').value,barcode:bc,photo:bindItemForm._photo||'',updatedAt:Date.now()};
+  if(isNew){const it={id:uid(),batches:[],...data};state.items.push(it);await DB.put('items',it);addLog('Позиция',`Добавлена: ${name} — ${qty} горшков, код ${it.barcode}`);toast('✓ Растение добавлено. Добавьте партию для себестоимости.');go('#/item/'+it.id)}
   else{const old=itemsById()[id],it={id,...old,...data};const idx=state.items.findIndex(x=>x.id===id);state.items[idx]=it;await DB.put('items',it);
-   addLog('Позиция',`Изменена: ${name}`+(old.qty!==qty?` (остаток ${old.qty} → ${qty})`:''));toast('✓ Сохранено');maybeSync();go('#/site/'+it.siteId)}};
+   addLog('Позиция',`Изменена: ${name}`+(old.qty!==qty?` (остаток ${old.qty} → ${qty})`:'')+(old.barcode!==it.barcode?` (код ${old.barcode} → ${it.barcode})`:''));toast('✓ Сохранено');maybeSync();go('#/site/'+it.siteId)}};
  const del=$('#f-del');if(del)del.onclick=async()=>{if(!confirm('Удалить позицию? История продаж сохранится.'))return;
   const it=itemsById()[id];it.deletedAt=Date.now();it.updatedAt=Date.now();await DB.put('items',it);
   addLog('Позиция',`Удалена: ${it.name}`);toast('Удалено');maybeSync();go('#/site/'+it.siteId)}}
@@ -319,13 +329,13 @@ function renderLabels(){
  <div class="lbl-preview" id="lbl-prev"><span class="muted">Выберите позиции — здесь появится предпросмотр</span></div>
  <div class="btnrow"><button class="btn primary big" id="lbl-a4">📄 PDF на A4 (43×25, сетка)</button></div>
  <div class="btnrow"><button class="btn ghost" id="lbl-thermo">🧾 Термо 46×20 (лента)</button><button class="btn ghost" id="lbl-print">🖨 Печать</button></div>
- <div class="note">A4: 4×11 = 44 этикетки 43×25 мм на лист, масштаб печати 100%. Термо: PDF-лента 46×20 мм (страница = этикетка) для Honeywell с компьютера.</div>`}
+ <div class="note">A4: 4×11 = 44 этикетки 43×25 мм на лист, масштаб печати 100%. Термо: PDF-лента 46×20 мм (страница = этикетка) для Honeywell с компьютера. Код сорта напечатан цифрами на этикетке.</div>`}
 function lblList(){const sid=$('#lbl-site')?.value;const its=actItems().filter(i=>!sid||i.siteId===sid);
  const box=$('#lbl-list');if(!box)return;
  if(!its.length){box.innerHTML='<div class="muted" style="padding:6px">Нет позиций — добавьте растения.</div>';return}
  box.innerHTML=its.map(it=>{const st=siteOf(it);return`<div class="lbl-item">
   <input type="checkbox" data-lid="${it.id}" ${labelSel[it.id]?'checked':''}>
-  <span class="nm">${esc(it.name)} <b style="color:var(--pine)">№${esc(it.barcode)}</b><small>площ. ${esc(st.num)} · ${money(it.price)} · остаток ${it.qty}</small></span>
+  <span class="nm">${esc(it.name)} <b style="color:var(--pine)">${esc(it.barcode)}</b><small>площ. ${esc(st.num)} · ${money(it.price)} · остаток ${it.qty}</small></span>
   <input type="number" min="0" data-cid="${it.id}" value="${labelSel[it.id]||0}" inputmode="numeric"></div>`}).join('');
  box.querySelectorAll('[data-lid]').forEach(c=>c.onchange=()=>{if(c.checked)labelSel[c.dataset.lid]=labelSel[c.dataset.lid]||1;else delete labelSel[c.dataset.lid];lblSync();lblPrev()});
  box.querySelectorAll('[data-cid]').forEach(n=>n.oninput=()=>{const v=Math.max(0,Math.round(+n.value||0));if(v>0)labelSel[n.dataset.cid]=v;else delete labelSel[n.dataset.cid];lblSync();lblPrev()});
@@ -339,7 +349,7 @@ function bindLabels(){
  $('#lbl-site').onchange=()=>{labelSel={};lblList()};
  $('#lbl-all').onclick=()=>{const sid=$('#lbl-site').value;actItems().forEach(i=>{if(!sid||i.siteId===sid)labelSel[i.id]=labelSel[i.id]||1});lblList()};
  $('#lbl-none').onclick=()=>{labelSel={};lblList()};
- $('#lbl-eq').onclick=()=>{const sid=$('#lbl-site').value;actItems().forEach(i=>{if(!sid||i.siteId===sid)labelSel[i.id]=+i.qty||0});lblList();toast('Копии = остатку: у каждого горшка будет этикетка с кодом сорта')};
+ $('#lbl-eq').onclick=()=>{const sid=$('#lbl-site').value;actItems().forEach(i=>{if(!sid||i.siteId===sid)labelSel[i.id]=+i.qty||0});lblList();toast('Копии = остатку: у каждого горшка этикетка с кодом сорта')};
  $('#lbl-a4').onclick=()=>makeLabelsPdf('a4');
  $('#lbl-thermo').onclick=()=>makeLabelsPdf('thermo');
  $('#lbl-print').onclick=()=>printLabelsHtml();
@@ -367,36 +377,32 @@ function renderScan(){return`<div class="pagehead"><h2>Сканер продаж
    <video id="scan-video" playsinline muted></video>
    <div class="frame"><i></i><i></i><i></i><i></i></div><div class="laser"></div>
  </div>
- <div class="scan-hint">Наведите камеру на штрихкод. Повторное сканирование того же кода = +1 шт. Работает без интернета.</div>
+ <div class="scan-hint">Наведите камеру на штрихкод (8 цифр под полосками). Повторное сканирование того же кода = +1 шт. Работает без интернета.</div>
  <div class="btnrow" style="margin-top:0"><button class="btn primary big" id="scan-start">▶ Включить камеру</button></div>
  <div class="card" style="margin-top:12px"><label style="font-size:13px;font-weight:700;color:#41523c">Если камера не читает — выберите сорт или введите код</label>
-  <div class="manual-row"><input id="man-code" placeholder="Код, напр. 101" autocomplete="off" inputmode="numeric">
+  <div class="manual-row"><input id="man-code" placeholder="Код, напр. 51324567" autocomplete="off" inputmode="numeric">
    <button class="btn leaf" id="man-go">Найти</button><button class="btn ghost" id="man-list">Список</button></div></div>`}
 let scanBusy=0;
 function bindScan(){
  $('#scan-start').onclick=startScan;
  $('#man-go').onclick=()=>{const v=$('#man-code').value.trim();if(!v)return;
-  const it=actItems().find(i=>(i.barcode||'').toLowerCase()===v.toLowerCase())||actItems().find(i=>(i.name||'').toLowerCase().includes(v.toLowerCase()));
+  const it=actItems().find(i=>(i.barcode||'')===v)||actItems().find(i=>(i.name||'').toLowerCase().includes(v.toLowerCase()));
   if(it){openSale(it);$('#man-code').value=''}else toast('Код «'+esc(v)+'» не найден','err')};
  $('#man-code').addEventListener('keydown',e=>{if(e.key==='Enter')$('#man-go').click()});
  $('#man-list').onclick=openPicker}
-window.openPicker=function(){const list=()=>actItems().map(it=>{const st=siteOf(it);
+window.openPicker=function(){const row=it=>{const st=siteOf(it);
   return`<button class="card row-card" data-pick="${it.id}" style="padding:10px 12px">
    ${it.photo?`<img class="ph" style="width:42px;height:42px" src="${it.photo}">`:'<span class="sale-ico">🌿</span>'}
-   <span class="row-main"><b>${esc(it.name)}</b><div class="sub">${esc(it.variety||'')} · №${esc(st.num)} · код <b>${esc(it.barcode)}</b></div></span>
-   <span class="row-side"><span class="pots">${it.qty}<small>шт</small></span></span></button>`}).join('');
+   <span class="row-main"><b>${esc(it.name)}</b><div class="sub">${esc(it.variety||'')} · код <b>${esc(it.barcode)}</b></div></span>
+   <span class="row-side"><span class="pots">${it.qty}<small>шт</small></span></span></button>`};
+ const bind=()=>{$$('#pk-list [data-pick]').forEach(b=>b.onclick=()=>openSale(itemsById()[b.dataset.pick]))};
  $('#modal-root').innerHTML=`<div class="backdrop" onclick="closeSheet()"></div>
  <div class="sheet"><div class="grab"></div><h3 style="margin:0 0 10px;font-family:var(--fd)">Выберите сорт</h3>
   <div class="field"><input id="pk-q" placeholder="Поиск: название, сорт или код"></div>
-  <div class="picker-list" id="pk-list">${list()}</div></div>`;
- const bind=()=>{$$('#pk-list [data-pick]').forEach(b=>b.onclick=()=>{const it=itemsById()[b.dataset.pick];openSale(it)});};
+  <div class="picker-list" id="pk-list">${actItems().map(row).join('')}</div></div>`;
  bind();
  $('#pk-q').oninput=()=>{const q=$('#pk-q').value.toLowerCase();
-  $('#pk-list').innerHTML=actItems().filter(it=>(it.name+' '+(it.variety||'')+' '+it.barcode).toLowerCase().includes(q)).map(it=>{const st=siteOf(it);
-   return`<button class="card row-card" data-pick="${it.id}" style="padding:10px 12px">
-    ${it.photo?`<img class="ph" style="width:42px;height:42px" src="${it.photo}">`:'<span class="sale-ico">🌿</span>'}
-    <span class="row-main"><b>${esc(it.name)}</b><div class="sub">${esc(it.variety||'')} · код <b>${esc(it.barcode)}</b></div></span>
-    <span class="row-side"><span class="pots">${it.qty}<small>шт</small></span></span></button>`}).join('')||'<div class="muted">Ничего не найдено</div>';
+  $('#pk-list').innerHTML=actItems().filter(it=>(it.name+' '+(it.variety||'')+' '+it.barcode).toLowerCase().includes(q)).map(row).join('')||'<div class="muted">Ничего не найдено</div>';
   bind()}}
 async function startScan(){
  const btn=$('#scan-start');if(!btn)return;
@@ -412,7 +418,7 @@ async function startScan(){
  }catch(err){console.warn(err);toast('Не удалось открыть камеру. Выберите сорт из «Списка» или введите код.','err')}}
 function onScan(txt){const code=String(txt||'').trim();if(!code)return;const now=Date.now();
  if(now-scanBusy<1200)return;scanBusy=now;beep();vib(70);
- const it=actItems().find(i=>(i.barcode||'').toLowerCase()===code.toLowerCase());
+ const it=actItems().find(i=>(i.barcode||'')===code);
  if(!it)return toast('Код «'+esc(code)+'» не найден в базе','err');
  if(saleOpen&&saleOpen.item.id===it.id){saleOpen.qty=Math.min(saleOpen.qty+1,999);updSaleSheet();toast('+1 → '+saleOpen.qty+' шт')}
  else openSale(it)}
@@ -519,7 +525,7 @@ function rBody(){const d=reportData(repPeriod);
  <h3 style="margin:18px 2px 8px;font-family:var(--fd);font-size:16px">⚠ Заканчиваются (меньше ${LOWF()})</h3>
  ${d.low.length?d.low.map(i=>{const st=siteOf(i);return`<div class="card sale-row" style="padding:10px 12px">
    ${i.photo?`<img class="ph" style="width:42px;height:42px" src="${i.photo}">`:'<span class="sale-ico">🌿</span>'}
-   <span class="row-main"><b>${esc(i.name)}</b><div class="sub">${esc(i.variety||'')} · №${esc(st.num)} · код ${esc(i.barcode)}</div></span>
+   <span class="row-main"><b>${esc(i.name)}</b><div class="sub">${esc(i.variety||'')} · площ. ${esc(st.num)} · код ${esc(i.barcode)}</div></span>
    <span class="low ${i.qty==0?'red':''}">${i.qty} шт</span></div>`}).join(''):'<div class="note">Всё в порядке — запасов достаточно 🌿</div>'}`;
  $('#r-pdf').onclick=()=>printReport(repPeriod)}
 function printReport(p){const d=reportData(p);
@@ -545,7 +551,7 @@ function printReport(p){const d=reportData(p);
   ${d.low.map(i=>`<tr><td>${esc(i.name)} ${esc(i.variety||'')} (код ${esc(i.barcode)})</td><td>№${esc(siteOf(i).num)}</td><td class="num"><b>${i.qty}</b></td></tr>`).join('')||'<tr><td colspan=3>Таких позиций нет</td></tr>'}</table>`);
  w.document.close();addLog('Отчёт','Сформирован печатный отчёт '+labels[p])}
 
-/* ---------- СИНХРОНИЗАЦИЯ (Supabase, этап 2) ---------- */
+/* ---------- СИНХРОНИЗАЦИЯ (Supabase) ---------- */
 let syncTimer=null;
 function maybeSync(){if(!settings.sbUrl||!settings.sbKey||!navigator.onLine)return;clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncNow(false),4000)}
 async function syncNow(manual){
@@ -612,9 +618,9 @@ create policy docs_delete on docs for delete using (true);</pre>
   <input type="file" id="imp-file" accept="application/json" class="hidden">
   <div class="btnrow"><button class="btn leaf" id="set-demo">🌱 Демо-данные</button><button class="btn danger" id="set-reset">Сбросить всё</button></div>
   <div class="btnrow"><button class="btn primary" id="set-install" style="display:none">📲 Установить приложение</button></div>
-  ${ios?'<div class="note">iPhone: «Поделиться» → «На экран Домой» — и ярлык с эмблемой на рабочем столе.</div>':''}
+  ${ios?'<div class="note">iPhone: «Поделиться» → «На экран Домой» — ярлык с гномиком на рабочем столе.</div>':''}
  </div>
- <div class="muted" style="text-align:center;margin:18px 0">Гектары Счастья · v2 · офлайн-PWA</div>`}
+ <div class="muted" style="text-align:center;margin:18px 0">Гектары Счастья · v3 · офлайн-PWA</div>`}
 function bindSettings(){updSyncUi();
  const sv=()=>{settings.code=$('#set-code').value.trim();settings.device=$('#set-device').value.trim()||'Устройство';
   settings.sbUrl=$('#set-sburl').value.trim();settings.sbKey=$('#set-sbkey').value.trim();saveSettings();updHeader();updSyncUi()};
@@ -651,10 +657,8 @@ async function seedDemo(){
   [s2,'Груша','Лада','120–150 см','3 года',950,3,'#f2e4c8','#c99f52','🍐',{purchase:1500,soil:250,fert:110,pot:220,water:60}],
   [s3,'Роза флорибунда','Лавли Лидия','30 см','1 год',450,48,'#ffd9dc','#e88a96','🌹',{purchase:7200,soil:1000,fert:500,pot:900,water:250}],
   [s3,'Роза плетистая','Эльф','50 см','2 года',780,0,'#e4d9f5','#a98fd6','🌹',{purchase:600,soil:90,fert:40,pot:70,water:20}]];
- let n=101;
  for(const[site,name,variety,h,age,price,qty,c1,c2,e,cost]of demo){
-  while(state.items.some(i=>i.barcode===String(n)))n++;
-  const it={id:uid(),siteId:site.id,name,variety,height:h,age,price,qty,barcode:String(n++),batches:[],
+  const it={id:uid(),siteId:site.id,name,variety,height:h,age,price,qty,barcode:nextBarcode(),batches:[],
    photo:demoPhoto(c1,c2,e),cost:{...cost,batchQty:qty||1},updatedAt:Date.now()};
   state.items.push(it);await DB.put('items',it)}
  addLog('Система','Загружены демо-данные')}
@@ -668,7 +672,7 @@ function updHeader(){$('#hdr-code').textContent='код: '+(settings.code||'—'
 window.addEventListener('offline',updHeader);
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 (async function init(){
- await DB.open();await loadAll();saveSettings();updHeader();
+ await DB.open();await loadAll();await migrateCodes();saveSettings();updHeader();
  if(!localStorage.getItem('pn-welcomed')){
   $('#modal-root').innerHTML=`<div class="backdrop"></div><div class="sheet"><div class="grab"></div>
    <img class="welcome-logo" src="logo.png" onerror="this.remove()">

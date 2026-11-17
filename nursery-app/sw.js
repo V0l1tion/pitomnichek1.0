@@ -1,4 +1,4 @@
-const CACHE='gs-v3';
+const CACHE='gs-v4';
 const CORE=['./','index.html','styles.css','app.js','manifest.webmanifest','icon.svg','logo.png','apple-touch-icon.png','icon-192.png','icon-512.png'];
 const CDN=['https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
  'https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=Unbounded:wght@500;700;900&display=swap'];
